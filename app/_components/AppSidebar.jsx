@@ -16,7 +16,8 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center justify-between p-3">
+        <div className="p-3">
+        <div className="flex items-center justify-between ">
           <div className="flex items-center gap-3">
             <Image
               src="/logo.svg"
@@ -34,17 +35,24 @@ export function AppSidebar() {
           >
             {theme === "light" ? <Sun /> : <Moon />}
           </Button>
+
+        </div><Button className="mt-7 w-full size-lg"> + New Chat</Button>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          {/* Add sidebar menu items here */}
+            <div className="p-3">
+          <h2 className="font-bold text-lg">Chat</h2>
+          <p className="text-sm text-gray-400">Sign in to start chatting with multiple model</p>
+        </div>
         </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>
-        {/* Add footer content if needed */}
+        <div className="p-3 mb-10">
+            <Button className={'w-full'} size={'lg'}>Sign In/Sign Up</Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
