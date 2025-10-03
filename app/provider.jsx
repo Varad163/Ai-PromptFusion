@@ -1,13 +1,52 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { SidebarProvider } from "@/components/ui/sidebar"; // ✅ default export removed
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/AppSidebar";
 import AppHeader from "./_components/AppHeader";
 
+// 🔹 Clerk + Firebase imports
+import { useUser } from "@clerk/nextjs";
+import { db } from "@/config/FirebaseConfig"; // ✅ make sure you have this file
+import { doc, getDoc, setDoc } from "firebase/firestore";
+
 export default function Provider({ children, ...props }) {
+  const { user } = useUser();
+
+  // 👇 Define function once
+  const createNewUser = async () => {
+    if (!user) return;
+
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
+    if (!userEmail) return;
+
+    const userRef = doc(db, "users", userEmail);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      console.log("👤 Existing user");
+      return;
+    }
+
+    const userData = {
+      name: user?.fullName || "Unnamed User",
+      email: userEmail,
+      createdAt: new Date(),
+      remainingMsg: 5,
+      plan: "Free",
+      credits: 1000,
+    };
+
+    await setDoc(userRef, userData);
+    console.log("✅ New user data saved");
+  };
+
+  // 🌀 Call once when `user` is loaded
+  useEffect(() => {
+    createNewUser();
+  }, [user]);
+
   return (
     <NextThemesProvider
       attribute="class"
@@ -17,12 +56,11 @@ export default function Provider({ children, ...props }) {
       {...props}
     >
       <SidebarProvider>
-        <AppSidebar/>
+        <AppSidebar />
         <div className="w-full">
-        <AppHeader/>
-        {children}
+          <AppHeader />
+          {children}
         </div>
-        
       </SidebarProvider>
     </NextThemesProvider>
   );

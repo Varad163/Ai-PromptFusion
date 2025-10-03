@@ -1,24 +1,31 @@
-// Import the functions you need from the SDKs you need
+// config/FirebaseConfig.js
+
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 
-import {getFirestore} from 'firebase/firestore'
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+// ✅ Don't import `getAnalytics` globally — it must run only in browser
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey:process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: "ai-fusion-models.firebaseapp.com",
   projectId: "ai-fusion-models",
   storageBucket: "ai-fusion-models.firebasestorage.app",
   messagingSenderId: "215629515321",
   appId: "1:215629515321:web:3215451e8884a7b7195be8",
-  measurementId: "G-MHTEDFV9BW"
+  measurementId: "G-MHTEDFV9BW",
 };
 
-// Initialize Firebase
+// ✅ Initialize Firebase once
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-export const db=getFirestore(app)
+
+// ✅ Firestore (works on server and client)
+export const db = getFirestore(app);
+
+// ✅ Optional analytics initializer (client-only)
+export const initAnalytics = async () => {
+  if (typeof window !== "undefined") {
+    const { getAnalytics } = await import("firebase/analytics");
+    return getAnalytics(app);
+  }
+  return null;
+};
