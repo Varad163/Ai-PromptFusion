@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/AppSidebar";
@@ -10,9 +10,12 @@ import AppHeader from "./_components/AppHeader";
 import { useUser } from "@clerk/nextjs";
 import { db } from "@/config/FirebaseConfig"; // ✅ make sure you have this file
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { AiSelectetdModelContext } from "@/context/AiSelectedModelContext";
+import { DefaultModel } from "@/shared/AiModelsShared";
 
 export default function Provider({ children, ...props }) {
   const { user } = useUser();
+  const [aiSelectedModels,setAiSelectedModels]=useState(DefaultModel)
 
   // 👇 Define function once
   const createNewUser = async () => {
@@ -55,6 +58,7 @@ export default function Provider({ children, ...props }) {
       disableTransitionOnChange
       {...props}
     >
+      <AiSelectetdModelContext.Provider value={{aiSelectedModels,setAiSelectedModels}}>
       <SidebarProvider>
         <AppSidebar />
         <div className="w-full">
@@ -62,6 +66,7 @@ export default function Provider({ children, ...props }) {
           {children}
         </div>
       </SidebarProvider>
+      </AiSelectetdModelContext.Provider>
     </NextThemesProvider>
   );
 }

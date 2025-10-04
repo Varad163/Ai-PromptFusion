@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import AiModelList from "@/shared/AiModelList";
 import Image from "next/image";
 import {
@@ -12,8 +12,21 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { AiSelectetdModelContext } from "@/context/AiSelectedModelContext";
+import { SelectGroup } from "@radix-ui/react-select";
+
+// 🧠 Firestore imports
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { db } from "@/config/FirebaseConfig";
 
 export default function AiMultiModels() {
+  // Simulate user premium status (Later connect with real user data)
+  const isUserPremium = false;
+
+  // 🧠 Simulated user ID (replace with auth user ID)
+  const userId = "user123";
+
+  // Local state: list of models with enabled + selected submodel
   const [aiModelList, setAiModelList] = useState(
     AiModelList.map((m) => ({
       ...m,
@@ -22,6 +35,54 @@ export default function AiMultiModels() {
     }))
   );
 
+  const { aiSelectedModels, setAiSelectedModels } = useContext(
+    AiSelectetdModelContext
+  );
+
+  // 🧠 Save model selection to Firestore
+  const saveSelectionToDB = async (model, subModel) => {
+    try {
+      await setDoc(
+        doc(db, "users", userId),
+        {
+          selectedModels: {
+            [model]: subModel,
+          },
+        },
+        { merge: true }
+      );
+      console.log("✅ Saved:", model, subModel);
+    } catch (err) {
+      console.error("❌ Error saving selection:", err);
+    }
+  };
+
+  // 🧠 Load saved selections on mount
+  useEffect(() => {
+    const fetchUserSelection = async () => {
+      try {
+        const snap = await getDoc(doc(db, "users", userId));
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.selectedModels) {
+            setAiModelList((prev) =>
+              prev.map((m) => ({
+                ...m,
+                selectedSubModel: data.selectedModels[m.model] || "",
+                enabled: !!data.selectedModels[m.model],
+              }))
+            );
+          }
+        }
+      } catch (err) {
+        console.error("❌ Error loading user data:", err);
+      }
+    };
+
+    fetchUserSelection();
+  }, []);
+
+  // Toggle model on/off
   const handleToggle = (model) => {
     setAiModelList((prev) =>
       prev.map((m) =>
@@ -30,14 +91,19 @@ export default function AiMultiModels() {
     );
   };
 
+  // Change selected submodel
   const handleSubModelChange = (model, subModel) => {
     setAiModelList((prev) =>
       prev.map((m) =>
         m.model === model ? { ...m, selectedSubModel: subModel } : m
       )
     );
+
+    // Save to Firestore
+    saveSelectionToDB(model, subModel);
   };
 
+  // Get selected submodel details
   const getSelectedSubModel = (model) =>
     model.subModel.find((sub) => sub.name === model.selectedSubModel);
 
@@ -57,6 +123,7 @@ export default function AiMultiModels() {
             >
               {/* Header */}
               <div className="flex items-center justify-between p-3 border-b border-gray-200">
+                {/* Left side - Icon and Dropdown */}
                 <div className="flex items-center gap-2">
                   <Image
                     src={model.icon}
@@ -72,38 +139,78 @@ export default function AiMultiModels() {
                         handleSubModelChange(model.model, value)
                       }
                     >
-                      <SelectTrigger className="w-[180px] h-8 text-sm">
-                        <SelectValue placeholder={model.model} />
+                      <SelectTrigger className="w-[200px] h-8 text-sm">
+                        <SelectValue
+                          placeholder={
+                            model.selectedSubModel || "Select submodel"
+                          }
+                        />
                       </SelectTrigger>
+
                       <SelectContent>
-                        {model.subModel.map((sub) => (
-                          <SelectItem key={sub.id} value={sub.name}>
-                            {sub.name} {sub.premium && "💎"}
-                          </SelectItem>
-                        ))}
+                        <SelectGroup>
+                          {/* 🟢 Free Models */}
+                          <div className="px-2 py-1 text-xs font-semibold text-gray-500">
+                            Free
+                          </div>
+                          {model.subModel
+                            .filter((sub) => !sub.premium)
+                            .map((sub) => (
+                              <SelectItem key={sub.id} value={sub.name}>
+                                {sub.name}
+                              </SelectItem>
+                            ))}
+
+                          {/* 💎 Premium Models */}
+                          <div className="px-2 py-1 text-xs font-semibold text-gray-500 mt-2 border-t border-gray-200">
+                            Premium
+                          </div>
+                          {model.subModel
+                            .filter((sub) => sub.premium)
+                            .map((sub) => (
+                              <SelectItem
+                                key={sub.id}
+                                value={sub.name}
+                                disabled={!isUserPremium}
+                              >
+                                {sub.name} 💎
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   )}
                 </div>
-                <Switch
-                  checked={model.enabled}
-                  onCheckedChange={() => handleToggle(model.model)}
-                />
+
+                {/* Right side - Label + Switch */}
+                <div className="flex items-center gap-2">
+                  {model.enabled && (
+                    <span
+                      className={`text-xs font-medium ${
+                        isPremium ? "text-yellow-600" : "text-green-600"
+                      }`}
+                    >
+                      {isPremium ? "Premium 💎" : "Free 🟢"}
+                    </span>
+                  )}
+                  <Switch
+                    checked={model.enabled}
+                    onCheckedChange={() => handleToggle(model.model)}
+                  />
+                </div>
               </div>
 
               {/* Body */}
               {model.enabled && (
                 <div className="flex-1 flex flex-col justify-between">
                   <div className="flex flex-col items-center justify-center flex-1 p-4">
-                    {/* Case 1: No submodel */}
                     {!model.selectedSubModel && (
                       <p className="text-sm text-gray-400 italic">
                         Select a submodel to start...
                       </p>
                     )}
 
-                    {/* Case 2: Premium */}
-                    {model.selectedSubModel && isPremium && (
+                    {model.selectedSubModel && isPremium && !isUserPremium && (
                       <div className="flex flex-col items-center justify-center h-full">
                         <p className="text-sm text-gray-500 mb-3 text-center">
                           🔒 {model.selectedSubModel} is a Premium feature
@@ -118,23 +225,23 @@ export default function AiMultiModels() {
                       </div>
                     )}
 
-                    {/* Case 3: Normal */}
-                    {model.selectedSubModel && !isPremium && (
-                      <div className="w-full h-full flex flex-col">
-                        <div className="text-xs text-gray-600 border border-blue-100 bg-blue-50 px-2 py-1 rounded-md mb-3 text-center">
-                          Using:{" "}
-                          <span className="font-medium text-blue-600">
-                            {model.selectedSubModel}
-                          </span>
+                    {model.selectedSubModel &&
+                      (!isPremium || isUserPremium) && (
+                        <div className="w-full h-full flex flex-col">
+                          <div className="text-xs text-gray-600 border border-blue-100 bg-blue-50 px-2 py-1 rounded-md mb-3 text-center">
+                            Using:{" "}
+                            <span className="font-medium text-blue-600">
+                              {model.selectedSubModel}
+                            </span>
+                          </div>
+                          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                            💬 Chat area
+                          </div>
                         </div>
-                        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-                          💬 Chat area
-                        </div>
-                      </div>
-                    )}
+                      )}
                   </div>
 
-                  {/* Bottom line */}
+                  {/* Footer */}
                   <div className="border-t border-gray-200 p-2 text-center text-xs text-gray-400">
                     End of Chat
                   </div>
