@@ -16,16 +16,15 @@ import { AiSelectetdModelContext } from "@/context/AiSelectedModelContext";
 import { SelectGroup } from "@radix-ui/react-select";
 
 // 🧠 Firestore imports
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "@/config/FirebaseConfig";
 
 // ✅ Clerk import to get logged-in user
 import { useUser } from "@clerk/nextjs";
 
 export default function AiMultiModels() {
-  const { user } = useUser(); // ✅ Get user from Clerk
-  const userId = user?.id; // 👤 Get userId safely
-
+  const { user } = useUser();
+  const userEmail = user?.primaryEmailAddress?.emailAddress; // 🔑 use email as document ID
   const isUserPremium = false;
 
   const [aiModelList, setAiModelList] = useState(
@@ -40,40 +39,53 @@ export default function AiMultiModels() {
     AiSelectetdModelContext
   );
 
-  // ✅ Save model selection to Firestore
+  // ✅ Save selected model to Firestore
   const saveSelectionToDB = async (model, subModel) => {
-    if (!userId) return console.warn("⚠️ User not signed in");
+    if (!userEmail) return console.warn("⚠️ User not signed in");
     try {
       await setDoc(
-        doc(db, "users", userId),
+        doc(db, "users", userEmail),
         {
-          selectedModels: {
-            [model]: subModel,
+          selectedModelPref: {
+            [model]: { modelId: subModel },
           },
         },
         { merge: true }
       );
-      console.log("✅ Saved:", model, subModel);
+      console.log(`✅ Saved: ${model} → ${subModel}`);
     } catch (err) {
       console.error("❌ Error saving selection:", err);
+    }
+  };
+
+  // 🗑️ Remove model when disabled
+  const removeSelectionFromDB = async (model) => {
+    if (!userEmail) return;
+    try {
+      await updateDoc(doc(db, "users", userEmail), {
+        [`selectedModelPref.${model}`]: deleteField(),
+      });
+      console.log(`🗑️ Removed ${model} from Firestore`);
+    } catch (err) {
+      console.error("❌ Error removing selection:", err);
     }
   };
 
   // ✅ Load saved selections from Firestore
   useEffect(() => {
     const fetchUserSelection = async () => {
-      if (!userId) return; // wait until user is signed in
+      if (!userEmail) return;
       try {
-        const snap = await getDoc(doc(db, "users", userId));
+        const snap = await getDoc(doc(db, "users", userEmail));
         if (snap.exists()) {
           const data = snap.data();
-          if (data.selectedModels) {
-            console.log("📥 Loaded user selections:", data.selectedModels);
+          if (data.selectedModelPref) {
+            console.log("📥 Loaded user selections:", data.selectedModelPref);
             setAiModelList((prev) =>
               prev.map((m) => ({
                 ...m,
-                selectedSubModel: data.selectedModels[m.model] || "",
-                enabled: !!data.selectedModels[m.model],
+                selectedSubModel: data.selectedModelPref[m.model]?.modelId || "",
+                enabled: !!data.selectedModelPref[m.model],
               }))
             );
           }
@@ -84,25 +96,35 @@ export default function AiMultiModels() {
     };
 
     fetchUserSelection();
-  }, [userId]); // 🔁 Refetch when userId changes (login/logout)
+  }, [userEmail]);
 
-  // ✅ Toggle model on/off
-  const handleToggle = (model) => {
+  // ✅ Toggle model ON/OFF
+  const handleToggle = async (model) => {
     setAiModelList((prev) =>
       prev.map((m) =>
         m.model === model ? { ...m, enabled: !m.enabled } : m
       )
     );
+
+    const selected = aiModelList.find((m) => m.model === model);
+    const newStatus = !selected.enabled;
+
+    // 🧠 Firestore sync
+    if (!newStatus) {
+      await removeSelectionFromDB(model);
+    } else if (selected.selectedSubModel) {
+      await saveSelectionToDB(model, selected.selectedSubModel);
+    }
   };
 
-  // ✅ Change selected submodel
+  // ✅ Handle submodel change
   const handleSubModelChange = (model, subModel) => {
     setAiModelList((prev) =>
       prev.map((m) =>
         m.model === model ? { ...m, selectedSubModel: subModel } : m
       )
     );
-    saveSelectionToDB(model, subModel); // 🔁 Save to Firestore
+    saveSelectionToDB(model, subModel);
   };
 
   const getSelectedSubModel = (model) =>
@@ -110,7 +132,7 @@ export default function AiMultiModels() {
 
   return (
     <div className="p-4 h-[calc(100vh-120px)] overflow-x-auto bg-gray-50">
-      {!userId && (
+      {!userEmail && (
         <p className="text-center text-sm text-gray-500 mb-4">
           ⚠️ Please sign in to save your model selections.
         </p>
@@ -210,34 +232,6 @@ export default function AiMultiModels() {
                         Select a submodel to start...
                       </p>
                     )}
-                    {model.selectedSubModel && isPremium && !isUserPremium && (
-                      <div className="flex flex-col items-center justify-center h-full">
-                        <p className="text-sm text-gray-500 mb-3 text-center">
-                          🔒 {model.selectedSubModel} is a Premium feature
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-yellow-400 text-yellow-600 hover:bg-yellow-50"
-                        >
-                          Upgrade to Unlock 💎
-                        </Button>
-                      </div>
-                    )}
-                    {model.selectedSubModel &&
-                      (!isPremium || isUserPremium) && (
-                        <div className="w-full h-full flex flex-col">
-                          <div className="text-xs text-gray-600 border border-blue-100 bg-blue-50 px-2 py-1 rounded-md mb-3 text-center">
-                            Using:{" "}
-                            <span className="font-medium text-blue-600">
-                              {model.selectedSubModel}
-                            </span>
-                          </div>
-                          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-                            💬 Chat area
-                          </div>
-                        </div>
-                      )}
                   </div>
                   <div className="border-t border-gray-200 p-2 text-center text-xs text-gray-400">
                     End of Chat
