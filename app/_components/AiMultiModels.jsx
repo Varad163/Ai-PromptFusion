@@ -19,14 +19,15 @@ import { SelectGroup } from "@radix-ui/react-select";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/config/FirebaseConfig";
 
+// ✅ Clerk import to get logged-in user
+import { useUser } from "@clerk/nextjs";
+
 export default function AiMultiModels() {
-  // Simulate user premium status (Later connect with real user data)
+  const { user } = useUser(); // ✅ Get user from Clerk
+  const userId = user?.id; // 👤 Get userId safely
+
   const isUserPremium = false;
 
-  // 🧠 Simulated user ID (replace with auth user ID)
-  const userId = "user123";
-
-  // Local state: list of models with enabled + selected submodel
   const [aiModelList, setAiModelList] = useState(
     AiModelList.map((m) => ({
       ...m,
@@ -39,8 +40,9 @@ export default function AiMultiModels() {
     AiSelectetdModelContext
   );
 
-  // 🧠 Save model selection to Firestore
+  // ✅ Save model selection to Firestore
   const saveSelectionToDB = async (model, subModel) => {
+    if (!userId) return console.warn("⚠️ User not signed in");
     try {
       await setDoc(
         doc(db, "users", userId),
@@ -57,14 +59,16 @@ export default function AiMultiModels() {
     }
   };
 
-  // 🧠 Load saved selections on mount
+  // ✅ Load saved selections from Firestore
   useEffect(() => {
     const fetchUserSelection = async () => {
+      if (!userId) return; // wait until user is signed in
       try {
         const snap = await getDoc(doc(db, "users", userId));
         if (snap.exists()) {
           const data = snap.data();
           if (data.selectedModels) {
+            console.log("📥 Loaded user selections:", data.selectedModels);
             setAiModelList((prev) =>
               prev.map((m) => ({
                 ...m,
@@ -80,9 +84,9 @@ export default function AiMultiModels() {
     };
 
     fetchUserSelection();
-  }, []);
+  }, [userId]); // 🔁 Refetch when userId changes (login/logout)
 
-  // Toggle model on/off
+  // ✅ Toggle model on/off
   const handleToggle = (model) => {
     setAiModelList((prev) =>
       prev.map((m) =>
@@ -91,24 +95,26 @@ export default function AiMultiModels() {
     );
   };
 
-  // Change selected submodel
+  // ✅ Change selected submodel
   const handleSubModelChange = (model, subModel) => {
     setAiModelList((prev) =>
       prev.map((m) =>
         m.model === model ? { ...m, selectedSubModel: subModel } : m
       )
     );
-
-    // Save to Firestore
-    saveSelectionToDB(model, subModel);
+    saveSelectionToDB(model, subModel); // 🔁 Save to Firestore
   };
 
-  // Get selected submodel details
   const getSelectedSubModel = (model) =>
     model.subModel.find((sub) => sub.name === model.selectedSubModel);
 
   return (
     <div className="p-4 h-[calc(100vh-120px)] overflow-x-auto bg-gray-50">
+      {!userId && (
+        <p className="text-center text-sm text-gray-500 mb-4">
+          ⚠️ Please sign in to save your model selections.
+        </p>
+      )}
       <div className="flex gap-3 min-w-max h-full">
         {aiModelList.map((model, i) => {
           const selectedSub = getSelectedSubModel(model);
@@ -123,7 +129,6 @@ export default function AiMultiModels() {
             >
               {/* Header */}
               <div className="flex items-center justify-between p-3 border-b border-gray-200">
-                {/* Left side - Icon and Dropdown */}
                 <div className="flex items-center gap-2">
                   <Image
                     src={model.icon}
@@ -149,7 +154,6 @@ export default function AiMultiModels() {
 
                       <SelectContent>
                         <SelectGroup>
-                          {/* 🟢 Free Models */}
                           <div className="px-2 py-1 text-xs font-semibold text-gray-500">
                             Free
                           </div>
@@ -161,7 +165,6 @@ export default function AiMultiModels() {
                               </SelectItem>
                             ))}
 
-                          {/* 💎 Premium Models */}
                           <div className="px-2 py-1 text-xs font-semibold text-gray-500 mt-2 border-t border-gray-200">
                             Premium
                           </div>
@@ -182,7 +185,6 @@ export default function AiMultiModels() {
                   )}
                 </div>
 
-                {/* Right side - Label + Switch */}
                 <div className="flex items-center gap-2">
                   {model.enabled && (
                     <span
@@ -200,7 +202,6 @@ export default function AiMultiModels() {
                 </div>
               </div>
 
-              {/* Body */}
               {model.enabled && (
                 <div className="flex-1 flex flex-col justify-between">
                   <div className="flex flex-col items-center justify-center flex-1 p-4">
@@ -209,7 +210,6 @@ export default function AiMultiModels() {
                         Select a submodel to start...
                       </p>
                     )}
-
                     {model.selectedSubModel && isPremium && !isUserPremium && (
                       <div className="flex flex-col items-center justify-center h-full">
                         <p className="text-sm text-gray-500 mb-3 text-center">
@@ -224,7 +224,6 @@ export default function AiMultiModels() {
                         </Button>
                       </div>
                     )}
-
                     {model.selectedSubModel &&
                       (!isPremium || isUserPremium) && (
                         <div className="w-full h-full flex flex-col">
@@ -240,8 +239,6 @@ export default function AiMultiModels() {
                         </div>
                       )}
                   </div>
-
-                  {/* Footer */}
                   <div className="border-t border-gray-200 p-2 text-center text-xs text-gray-400">
                     End of Chat
                   </div>
