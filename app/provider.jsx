@@ -16,6 +16,7 @@ import { DefaultModel } from "@/shared/AiModelsShared";
 export default function Provider({ children, ...props }) {
   const { user } = useUser();
   const [aiSelectedModels,setAiSelectedModels]=useState(DefaultModel)
+  const [messages,setMessages]=useState({})
 
   // 👇 Define function once
   const createNewUser = async () => {
@@ -58,7 +59,7 @@ export default function Provider({ children, ...props }) {
       disableTransitionOnChange
       {...props}
     >
-      <AiSelectetdModelContext.Provider value={{aiSelectedModels,setAiSelectedModels}}>
+      <AiSelectetdModelContext.Provider value={{aiSelectedModels,setAiSelectedModels,messages,setMessages}}>
       <SidebarProvider>
         <AppSidebar />
         <div className="w-full">
