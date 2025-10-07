@@ -161,7 +161,11 @@ export default function AiMultiModels() {
 
                 <div className="flex items-center gap-2">
                   {model.enabled && <span className={`text-xs font-medium ${isPremium ? "text-yellow-600" : "text-green-600"}`}>{isPremium ? "Premium 💎" : "Free 🟢"}</span>}
-                  <Switch checked={model.enabled} onCheckedChange={() => handleToggle(model.model)} />
+                  <Switch
+  checked={model.enabled}
+  onCheckedChange={() => handleToggle(model.model)} // ✅ runs only on toggle
+/>
+
                 </div>
               </div>
 
