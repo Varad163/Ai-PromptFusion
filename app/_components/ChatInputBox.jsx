@@ -12,19 +12,18 @@ function ChatInputBox() {
     aiSelectedModels,
     setAiSelectedModels,
     messages,
-    setMessages, // ✅ fixed name
+    setMessages,
   } = useContext(AiSelectetdModelContext);
 
-  // ✅ Add state for user input
   const [userInput, setUserInput] = useState("");
 
   const handleSend = async () => {
-    if (!userInput.trim()) return; // ✅ now works because state exists
+    if (!userInput.trim()) return;
 
     const currentInput = userInput;
-    setUserInput(""); // clear input after sending
+    setUserInput("");
 
-    // ✅ Add user message to all enabled models
+    // Add user message
     setMessages((prev) => {
       const updated = { ...prev };
       Object.keys(aiSelectedModels).forEach((modelKey) => {
@@ -37,69 +36,63 @@ function ChatInputBox() {
       return updated;
     });
 
-    // ✅ Fetch AI responses from all selected models
+    // Call API for each selected model
     Object.entries(aiSelectedModels).forEach(async ([parentModel, modelInfo]) => {
       if (!modelInfo.modelId) return;
 
-      // Add "Thinking..." placeholder
+      // Add placeholder
       setMessages((prev) => {
         const updated = { ...prev };
-        if (updated[parentModel]) {
-          updated[parentModel].push({
-            role: "assistant",
-            content: "Thinking...",
-            model: parentModel,
-            loading: true,
-          });
-        } else {
-          updated[parentModel] = [
-            {
-              role: "assistant",
-              content: "Thinking...",
-              model: parentModel,
-              loading: true,
-            },
-          ];
-        }
+        if (!updated[parentModel]) updated[parentModel] = [];
+        updated[parentModel].push({
+          role: "assistant",
+          content: "Thinking...",
+          model: parentModel,
+          loading: true,
+        });
         return updated;
       });
 
       try {
-        // ✅ API Call
-        const result = await axios.post("/api/ai-multi-model", {
-          model: modelInfo.modelId,
+        console.log("📤 Sending:", {
           msg: [{ role: "user", content: currentInput }],
+          model: modelInfo.modelId,
           parentModel,
         });
 
+        
+
+
+
+      const result = await axios.post("/api/ai-multi-model", {
+        msg: [{ role: "user", content: currentInput }],
+        model: modelInfo.modelId,
+        parentModel,
+      });
+// ...existing code...
+        console.log("📥 Result:", result.data);
+
         const { aiResponse, model } = result.data;
 
-        // Replace "Thinking..." with real response
+        // Replace placeholder with actual response
         setMessages((prev) => {
           const updated = { ...prev };
-          const loadingIndex = updated[parentModel].findIndex((m) => m.loading);
-
-          if (loadingIndex !== -1) {
-            updated[parentModel][loadingIndex] = {
+          const index = updated[parentModel].findIndex((m) => m.loading);
+          if (index !== -1) {
+            updated[parentModel][index] = {
               role: "assistant",
               content: aiResponse,
               model,
               loading: false,
             };
-          } else {
-            updated[parentModel].push({
-              role: "assistant",
-              content: aiResponse,
-              model,
-              loading: false,
-            });
           }
           return updated;
         });
       } catch (err) {
-        console.error("Error calling API:", err);
+        console.error("❌ Error calling API:", err);
         setMessages((prev) => {
           const updated = { ...prev };
+          if (!updated[parentModel]) updated[parentModel] = [];
           updated[parentModel].push({
             role: "assistant",
             content: "⚠️ Error fetching response.",
@@ -111,40 +104,29 @@ function ChatInputBox() {
     });
   };
 
-  // ✅ Log messages for debugging
   useEffect(() => {
     console.log("📩 Messages:", messages);
   }, [messages]);
 
   return (
     <div className="relative min-h-screen bg-background">
-      {/* Page content */}
       <AiMultiModels />
       <div className="p-4"></div>
-
-      {/* Fixed chat input */}
       <div className="fixed bottom-0 left-0 w-full flex justify-center bg-background/60 backdrop-blur-md p-4">
         <div className="w-full max-w-2xl border rounded-xl shadow-md flex items-center gap-2 px-4 py-2 bg-card">
-          {/* Attachment Button */}
           <Button variant="ghost" size="icon">
             <Paperclip className="h-5 w-5 text-muted-foreground" />
           </Button>
-
-          {/* Input field */}
           <input
             type="text"
             placeholder="Ask me anything..."
             value={userInput}
-            onChange={(e) => setUserInput(e.target.value)} // ✅ update state
+            onChange={(e) => setUserInput(e.target.value)}
             className="flex-1 bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground"
           />
-
-          {/* Mic Button */}
           <Button variant="ghost" size="icon">
             <Mic className="h-5 w-5 text-muted-foreground" />
           </Button>
-
-          {/* Send Button */}
           <Button
             variant="ghost"
             size="icon"

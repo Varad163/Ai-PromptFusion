@@ -11,20 +11,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
 import { AiSelectetdModelContext } from "@/context/AiSelectedModelContext";
 import { SelectGroup } from "@radix-ui/react-select";
-
-// 🧠 Firestore imports
 import { doc, setDoc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "@/config/FirebaseConfig";
-
-// ✅ Clerk import to get logged-in user
 import { useUser } from "@clerk/nextjs";
 
 export default function AiMultiModels() {
+  const { aiSelectedModels, setAiSelectedModels, messages, setMessages } =
+    useContext(AiSelectetdModelContext);
   const { user } = useUser();
-  const userEmail = user?.primaryEmailAddress?.emailAddress; // 🔑 use email as document ID
+  const userEmail = user?.primaryEmailAddress?.emailAddress;
   const isUserPremium = false;
 
   const [aiModelList, setAiModelList] = useState(
@@ -35,9 +32,7 @@ export default function AiMultiModels() {
     }))
   );
 
-  const { aiSelectedModels, setAiSelectedModels } = useContext(
-    AiSelectetdModelContext
-  );
+console.log(process.env.NEXT_PUBLIC_KRAVIXSTUDIO_API_KEY);
 
   // ✅ Save selected model to Firestore
   const saveSelectionToDB = async (model, subModel) => {
@@ -57,7 +52,6 @@ export default function AiMultiModels() {
       console.error("❌ Error saving selection:", err);
     }
   };
-
   // 🗑️ Remove model when disabled
   const removeSelectionFromDB = async (model) => {
     if (!userEmail) return;
@@ -84,7 +78,8 @@ export default function AiMultiModels() {
             setAiModelList((prev) =>
               prev.map((m) => ({
                 ...m,
-                selectedSubModel: data.selectedModelPref[m.model]?.modelId || "",
+                selectedSubModel:
+                  data.selectedModelPref[m.model]?.modelId || "",
                 enabled: !!data.selectedModelPref[m.model],
               }))
             );
@@ -109,7 +104,6 @@ export default function AiMultiModels() {
     const selected = aiModelList.find((m) => m.model === model);
     const newStatus = !selected.enabled;
 
-    // 🧠 Firestore sync
     if (!newStatus) {
       await removeSelectionFromDB(model);
     } else if (selected.selectedSubModel) {
@@ -130,6 +124,10 @@ export default function AiMultiModels() {
   const getSelectedSubModel = (model) =>
     model.subModel.find((sub) => sub.name === model.selectedSubModel);
 
+
+
+
+
   return (
     <div className="p-4 h-[calc(100vh-120px)] overflow-x-auto bg-gray-50">
       {!userEmail && (
@@ -145,9 +143,8 @@ export default function AiMultiModels() {
           return (
             <div
               key={i}
-              className={`flex flex-col transition-all duration-300 border border-gray-200 rounded-xl bg-white shadow-sm ${
-                model.enabled ? "w-[360px]" : "w-[80px]"
-              } h-full overflow-hidden`}
+              className={`flex flex-col transition-all duration-300 border border-gray-200 rounded-xl bg-white shadow-sm ${model.enabled ? "w-[360px]" : "w-[80px]"
+                } h-full overflow-hidden`}
             >
               {/* Header */}
               <div className="flex items-center justify-between p-3 border-b border-gray-200">
@@ -210,9 +207,8 @@ export default function AiMultiModels() {
                 <div className="flex items-center gap-2">
                   {model.enabled && (
                     <span
-                      className={`text-xs font-medium ${
-                        isPremium ? "text-yellow-600" : "text-green-600"
-                      }`}
+                      className={`text-xs font-medium ${isPremium ? "text-yellow-600" : "text-green-600"
+                        }`}
                     >
                       {isPremium ? "Premium 💎" : "Free 🟢"}
                     </span>
@@ -224,10 +220,28 @@ export default function AiMultiModels() {
                 </div>
               </div>
 
+              {/* ✅ Messages inside model */}
               {model.enabled && (
                 <div className="flex-1 flex flex-col justify-between">
-                  <div className="flex flex-col items-center justify-center flex-1 p-4">
-                    {!model.selectedSubModel && (
+                  <div className="flex flex-col items-center justify-start flex-1 p-4 space-y-2 overflow-y-auto">
+                    {messages[model.model]?.length > 0 ? (
+                      messages[model.model].map((m, index) => (
+                        <div
+                          key={index}
+                          className={`p-2 rounded-md w-full text-sm ${m.role === "user"
+                            ? "bg-blue-100 text-blue-900 self-end"
+                            : "bg-gray-100 text-gray-900 self-start"
+                            }`}
+                        >
+                          {m.role === "assistant" && (
+                            <span className="block text-xs text-gray-500 mb-1">
+                              {m.model ?? model.model}
+                            </span>
+                          )}
+                          {m.content}
+                        </div>
+                      ))
+                    ) : (
                       <p className="text-sm text-gray-400 italic">
                         Select a submodel to start...
                       </p>
@@ -245,3 +259,4 @@ export default function AiMultiModels() {
     </div>
   );
 }
+

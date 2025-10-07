@@ -29,9 +29,11 @@ export default function Provider({ children, ...props }) {
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-      console.log("👤 Existing user");
-      return;
-    }
+        console.log("👤 Existing user");
+        const userInfo = userSnap.data();
+        setAiSelectedModels(userInfo?.selectedModelPref ?? DefaultModel);
+        return;
+      }
 
     const userData = {
       name: user?.fullName || "Unnamed User",
