@@ -1,13 +1,15 @@
-"use client"
-import Image from "next/image";
-import {useTheme} from "next-themes";
-import {Button} from "@/components/ui/button"
+"use client";
+
 import ChatInputBox from "./_components/ChatInputBox";
+import AiMultiModels from "./_components/AiMultiModels";
+
 export default function Home() {
-  const {setTheme}=useTheme();
   return (
- <div>
- <ChatInputBox/>
- </div>
+    <div className="relative w-full h-full flex flex-col overflow-hidden bg-background">
+      <div className="flex-1 overflow-hidden">
+        <AiMultiModels />
+      </div>
+      <ChatInputBox />
+    </div>
   );
 }

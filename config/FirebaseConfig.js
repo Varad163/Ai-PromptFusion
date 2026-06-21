@@ -2,6 +2,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // ✅ Don't import `getAnalytics` globally — it must run only in browser
 
@@ -20,6 +21,9 @@ const app = initializeApp(firebaseConfig);
 
 // ✅ Firestore (works on server and client)
 export const db = getFirestore(app);
+
+// ✅ Firebase Storage
+export const storage = getStorage(app);
 
 // ✅ Optional analytics initializer (client-only)
 export const initAnalytics = async () => {
